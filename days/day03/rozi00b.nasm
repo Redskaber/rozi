@@ -1,4 +1,4 @@
-; path: rozi/days/day03/rozi00a.nasm
+; path: rozi/days/day03/rozi00b.nasm
 ; author: redskaber
 ; format: TAB=2
 
@@ -37,20 +37,33 @@ entry:
   MOV   SP, 0x7C00        ; stak pointer
   MOV   DS, AX            ; data segment
 
-  ; [NEW::START::读取磁盘] --------------
+  ; read disk
   MOV   AX, 0x820
   MOV   ES, AX            ; extra segment
   MOV   CH, 0             ; 柱面 0
   MOV   DH, 0             ; 磁头 0
   MOV   CL, 2             ; 扇区 2
 
+
+; [NEW::START::retry] --------------
+  MOV   SI, 0             ; 记录失败次数的寄存器
+retry:
   MOV   AH, 0x02          ;  AH=0x02 : 读盘
   MOV   AL, 1             ; 1 个扇区
   MOV   BX, 0             ;
   MOV   DL, 0x00          ; A 驱动器
   INT   0x13              ; 调用磁盘 BIOS 的 0x13 号函数
-  JC    error             ; 如果 `进制标志位 carry` 为 1 则 jump 到 error tag 继续 run
-  ; [NEW::END::读取磁盘] ----------------
+  JNC   fin               ; if carry-flag == 0 then jump fin tag
+  ADD   SI, 1             ; 失败计数加1
+  CMP   SI, 5             ; compare SI, 5
+  JAE   error             ; if SI >= 5 then jump error tag
+
+  ; reset
+  MOV   AH, 0x00
+  MOV   DL, 0x00
+  INT   0x13
+  JMP   retry
+; [NEW::START::retry] --------------
 
 
 putloop:
@@ -67,7 +80,6 @@ fin:
   JMP   fin
 
 
-; [NEW::START::读取磁盘] --------------
 error:
   MOV SI, errmsg          ; source index
 
@@ -81,7 +93,6 @@ errmsg:
                                 ; nasm: $  表示当前 section 的起始地址（默认从 0 开始）（段内偏移）
                                 ; nasm: $$ 表示从开始到当前位置的字节数                 (段基址)
   DB    0x55, 0xaa              ; 512 字节
-; [NEW::END::读取磁盘] ----------------
 
 
 ; only 512 bytes
