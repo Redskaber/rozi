@@ -14,3 +14,9 @@ run:
   @qemu-system-x86_64 -drive format=raw,file={{DEFAULT_IMG_NAME}}
 
 
+# dry build and run flow
+dry path:
+  @just make {{path}}
+  @just run
+
+
