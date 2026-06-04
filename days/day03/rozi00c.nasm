@@ -1,6 +1,10 @@
 ; path: rozi/days/day03/rozi00c.nasm
 ; author: redskaber
 ; format: TAB=2
+; 左移 4 位这种设计本质上就是为了解决当时的 16位存储和 20位地址之间转换关系设计
+; 段寄存器：
+;   段寄存器 × 16 + 偏移”的规则，只在 8086/8088 以及所有 x86 CPU 的实模式 下适用.
+;   适用于所有段寄存器（CS、DS、ES、SS)
 
 
 ORG 0x7C00
@@ -38,7 +42,7 @@ entry:
   MOV   DS, AX            ; data segment
 
   ; read disk
-  MOV   AX, 0x820
+  MOV   AX, 0x820         ; 0x8200 / 16
   MOV   ES, AX            ; extra segment
   MOV   CH, 0             ; 柱面 0
   MOV   DH, 0             ; 磁头 0
@@ -71,7 +75,7 @@ retry:
 ; [NEW::START::next] --------------
 next:
   MOV  AX, ES             ; 获取disk 当前扇区的地址
-  ADD  AX, 0x20           ; 地址偏移 0x200 = 512 bytes; 0x200 / 16 = 0x20; 左移 4 位这种设计本质上就是为了解决当时的 16位存储和 20位地址之间转换关系设计
+  ADD  AX, 0x20           ; 地址偏移 0x200 = 512 bytes; 0x200 / 16 = 0x20;
   MOV  ES, AX             ; 更新 ES (extra segment)
   ADD  CL, 1              ; 扇区加1
   CMP  CL, 18             ; compare CL, 18
@@ -109,5 +113,8 @@ errmsg:
 
 
 ; only 512 bytes
+
+; C0-H0-S1    : 0x7C00 -- (0x200     ) --> 0x7E00
+; C0-H0-S2-S18: 0x8200 -- (0x200 * 17) --> 0xA3FF
 
 
