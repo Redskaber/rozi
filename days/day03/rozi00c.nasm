@@ -1,6 +1,7 @@
 ; path: rozi/days/day03/rozi00c.nasm
 ; author: redskaber
 ; format: TAB=2
+; datetime: 2026-06-04
 ; 左移 4 位这种设计本质上就是为了解决当时的 16位存储和 20位地址之间转换关系设计
 ; 段寄存器：
 ;   段寄存器 × 16 + 偏移”的规则，只在 8086/8088 以及所有 x86 CPU 的实模式 下适用.

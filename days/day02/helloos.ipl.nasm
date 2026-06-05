@@ -1,5 +1,9 @@
+; path: rozi/days/day02/helloos.ipl.nasm
+; author: redskaber
+; format: TAB=2
+; datetime: 2026-05-22
 ; hello-os
-; TAB=2
+
 
 ORG 0x7C00
 

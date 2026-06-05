@@ -1,7 +1,8 @@
-; path: rozi/days/day03/rozi00d.nasm
+; path: rozi/days/day03/rozi00f.nasm
 ; author: redskaber
 ; format: TAB=2
-; datetime: 2026-06-04
+; datetime: 2026-06-05
+;
 ; 左移 4 位这种设计本质上就是为了解决当时的 16位存储和 20位地址之间转换关系设计
 ; 段寄存器：
 ;   段寄存器 × 16 + 偏移”的规则，只在 8086/8088 以及所有 x86 CPU 的实模式 下适用.
@@ -82,8 +83,6 @@ next:
   ADD   CL, 1              ; 扇区加1
   CMP   CL, 18             ; compare CL, 18
   JBE   readloop           ; if CL <= 18 then jump readloop tag
-
-; [NEW::START::next] --------------
   MOV   CL, 1              ; reset 扇区为1
   ADD   DH, 1              ; 磁头加1 (背面)
   CMP   DH, 2              ; compare DH, 2
@@ -92,7 +91,12 @@ next:
   ADD   CH, 1              ; 柱面+1
   CMP   CH, CYLS           ; compare CH, CYLS
   JB    readloop           ; if CH < CYLS then jump readloop tag
-; [NEW::END::next] ----------------
+
+
+; [NEW::START::SYSLOAD] --------------
+  MOV   [0x0FF0], CH       ; 磁盘装载内容的结束地址告诉给 sys
+  JMP   0xC200             ; load 10 cylinders to jump 0xC200 (sys data)
+; [NEW::END::SYSLOAD] ----------------
 
 
 putloop:
@@ -129,5 +133,3 @@ errmsg:
 ; C0-H0-S1              : 0x7C00 -- (0x200     ) --> 0x7E00
 ; C0-H0-S(2-18)         : 0x8200 -- (0x200 * 17) --> 0xA3FF
 ; C(0-9)-H(0-1)-S(1-18) : 0x8200 -- (0x200 * 2 * 18 * 10 - 0x200) --> 0x34FFF  !(C0-H0-S1)
-
-

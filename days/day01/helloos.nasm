@@ -1,5 +1,8 @@
+; path: rozi/days/day01/helloos.nasm
+; author: redskaber
+; format: TAB=2
+; datetime: 2026-05-21
 ; hello-os
-; TAB=2
 
 ORG 0x7C00
 xor ax, ax

@@ -1,6 +1,7 @@
 ; path: rozi/days/day03/rozi00a.nasm
 ; author: redskaber
 ; format: TAB=2
+; datetime: 2026-06-03
 
 
 ORG 0x7C00
