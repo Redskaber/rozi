@@ -6,7 +6,7 @@
 #   - Compiler prefix selection (GCCPREFIX)
 #   - NASM assembly → binary
 #   - C kernel compilation (gcc → as → ld) → bootpack.bin
-#   - haribote.sys = asmhead.bin + bootpack.bin
+#   - haribote.sys = asmhead.bin + bootpack.bin + nasmfunc.obj
 #   - FAT12 floppy image construction
 #   - QEMU launch
 #   - Clean / src_only
@@ -68,6 +68,7 @@ DEFAULT_BOOTPACK_S    := "bootpack.s"
 DEFAULT_BOOTPACK_O    := "bootpack.o"
 DEFAULT_BOOTPACK_NAME := "bootpack.bin"    # c to asm               ==>  *.sys
 
+DEFAULT_NASMFUNC_NAME := "nasmfunc.obj"    # nasm func to obj       ==>  *.sys
 DEFAULT_SYS_NAME      := 'rozios.sys'      # Kernel/system binary (loaded by boot sector)
 
 # img
@@ -78,8 +79,8 @@ DEFAULT_IMG_NAME      := 'rozios.img'      # Final floppy disk image (1.44MB FAT
 # Default target
 # -----------------------------------------------------------------------------
 # default build flow
-default ipath apath bpath:
-  @just img {{ipath}} {{apath}} {{bpath}}
+default ipath apath bpath npath:
+  @just img {{ipath}} {{apath}} {{bpath}} {{npath}}
 
 
 # -----------------------------------------------------------------------------
@@ -136,19 +137,30 @@ asmhead path: _check-macos-toolchain
 bootpack path: _check-macos-toolchain
     #!/usr/bin/env bash
     set -euo pipefail
-    {{CC}} -S {{CFLAGS}} {{path}} -o {{DEFAULT_BOOTPACK_S}}
-    {{AS}} {{DEFAULT_BOOTPACK_S}} -o {{DEFAULT_BOOTPACK_O}}
-    {{LD}} {{LDFLAGS}} {{DEFAULT_BOOTPACK_O}} -o {{DEFAULT_BOOTPACK_NAME}}
+    #{{CC}} -S {{CFLAGS}} {{path}} -o {{DEFAULT_BOOTPACK_S}}
+    #{{AS}} {{DEFAULT_BOOTPACK_S}} -o {{DEFAULT_BOOTPACK_O}}
+    #{{LD}} {{LDFLAGS}} {{DEFAULT_BOOTPACK_O}} -o {{DEFAULT_BOOTPACK_NAME}}
+
+    {{CC}} {{CFLAGS}} -c {{path}} -o {{DEFAULT_BOOTPACK_NAME}}
+
+
+# -----------------------------------------------------------------------------
+# nasmfunc.obj - nasm export funcs to c use
+# -----------------------------------------------------------------------------
+# sys::nasmfunc to c use
+nasmfunc path: _check-macos-toolchain
+    @just asm {{path}} {{DEFAULT_NASMFUNC_NAME}}
 
 
 # -----------------------------------------------------------------------------
 # haribote.sys — concatenate asmhead.bin + bootpack.bin
 # -----------------------------------------------------------------------------
-# build *.sys file
-sys apath bpath:
+# build *.sys file [asmhead + bootpack + nasmfunc]
+sys apath bpath npath:
   @just asmhead {{apath}}
   @just bootpack {{bpath}}
-  @cat {{DEFAULT_ASMHEAD_NAME}} {{DEFAULT_BOOTPACK_NAME}} > {{DEFAULT_SYS_NAME}}
+  @just nasmfunc {{npath}}
+  @cat {{DEFAULT_ASMHEAD_NAME}} {{DEFAULT_BOOTPACK_NAME}} {{DEFAULT_NASMFUNC_NAME}} > {{DEFAULT_SYS_NAME}}
 
 
 # -----------------------------------------------------------------------------
@@ -156,9 +168,9 @@ sys apath bpath:
 # Usage: just img <boot_source.nas> <kernel_source.nas>
 # -----------------------------------------------------------------------------
 # Build boot sector, kernel, and create the FAT12 disk image
-img ipath apath bpath:
+img ipath apath bpath npath:
   @just ipl10 {{ipath}}
-  @just sys {{apath}} {{bpath}}
+  @just sys {{apath}} {{bpath}} {{npath}}
   @just _img
 
 
@@ -186,8 +198,8 @@ run:
 # Usage: just dry <source.nas>
 # -----------------------------------------------------------------------------
 # Build both boot and kernel sources, then run in QEMU
-dry ipath apath bpath:
-    @just img {{ipath}} {{apath}} {{bpath}}
+dry ipath apath bpath npath:
+    @just img {{ipath}} {{apath}} {{bpath}} {{npath}}
     @just run
 
 # -----------------------------------------------------------------------------
@@ -196,8 +208,8 @@ dry ipath apath bpath:
 # Remove compiled binaries and listing files
 clean:
     @rm -f {{DEFAULT_IPL_NAME}} {{DEFAULT_ASMHEAD_NAME}} {{DEFAULT_BOOTPACK_NAME}} \
-      {{DEFAULT_BOOTPACK_S}} {{DEFAULT_BOOTPACK_O}} {{DEFAULT_SYS_NAME}} \
-      *.lst *.elf
+      {{DEFAULT_BOOTPACK_S}} {{DEFAULT_BOOTPACK_O}} {{DEFAULT_SYS_NAME}} {{DEFAULT_NASMFUNC_NAME}}
+
 
 # -----------------------------------------------------------------------------
 # Completely clean everything including the final disk image - equivalent to 'make src_only'
