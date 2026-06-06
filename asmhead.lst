@@ -1,0 +1,166 @@
+     1                                  ; path: rozi/days/day04/rozi01a.sys.nasm
+     2                                  ; author: redskaber
+     3                                  ; format: TAB=2
+     4                                  ; datetime: 2026-06-06
+     5                                  
+     6                                  
+     7                                  BOTPAK  EQU   0x00280000  ; 加载 bootpack
+     8                                  DSKCAC  EQU   0x00100000  ; 磁盘缓存的位置
+     9                                  DSKCAC0 EQU   0x00008000  ; 磁盘缓存的位置（实模式）
+    10                                  
+    11                                  
+    12                                  ; boot info
+    13                                  CYLS    EQU   0x0FF0    ; 设定启动区
+    14                                  LEDS    EQU   0x0FF1    ; 键盘LED指示灯状态
+    15                                  VMODE   EQU   0x0FF2    ; 关于颜色数目的信息。颜色位数
+    16                                  SCRNX   EQU   0x0FF4    ; 分辨率X （screen x ）
+    17                                  SCRNY   EQU   0x0FF6    ; 分辨率Y （screen y ）
+    18                                  VRAM    EQU   0x0FF8    ; 图像缓冲区的开始地址
+    19                                  
+    20                                  
+    21                                  ORG   0xC200            ; 这个程序装载到内存的位置
+    22                                  
+    23                                  
+    24 00000000 B013                      MOV   AL, 0x13        ; VGA 显卡， 320 x 200 x 8位彩色 （x * y * vmode）
+    25 00000002 B400                      MOV   AH, 0x00
+    26 00000004 CD10                      INT   0x10
+    27                                  
+    28                                  ; boot info
+    29 00000006 C706F40F4001              MOV   WORD [SCRNX], 320     ; x
+    30 0000000C C706F60FC800              MOV   WORD [SCRNY], 200     ; y
+    31 00000012 C606F20F08                MOV   BYTE [VMODE], 8       ; 记录画面模式
+    32 00000017 66C706F80F00000A00        MOV   DWORD [VRAM], 0x000A0000  ; VRAM （video RAM ）; 显示画面的内存， 地址对应画面像素; INT 0x10 => VRAM (0xA0000 - 0xAFFFF); 64KB
+    33                                  
+    34                                  
+    35                                  ; 用 BIOS 取得键盘上的各种LED 指示灯的状态
+    36 00000020 B402                      MOV   AH, 0x02
+    37 00000022 CD16                      INT   0x16            ; keyboard BIOS （键盘）
+    38 00000024 A2F10F                    MOV   [LEDS], AL      ; 存储到内存
+    39                                  
+    40                                  
+    41                                  ; 防止PIC接受所有中断
+    42                                  ; - AT兼容机的规范、PIC初始化
+    43                                  ; - 然后之前在CLI不做任何事就挂起
+    44                                  ; - PIC在同意后初始化
+    45 00000027 B0FF                      MOV   AL, 0xFF
+    46 00000029 E621                      OUT   0x21, AL
+    47 0000002B 90                        NOP                   ; 不断执行 OUT 指令
+    48 0000002C E6A1                      OUT   0xA1, AL
+    49                                  
+    50 0000002E FA                        CLI                   ; 进一步中断CPU
+    51                                  
+    52                                  
+    53                                  ; 让 CPU 支持 1M 以上内存、设置 A20GATE
+    54 0000002F E8B500                    CALL  waitkbdout
+    55 00000032 B0D1                      MOV   AL, 0xD1
+    56 00000034 E664                      OUT   0x64, AL
+    57                                  
+    58 00000036 E8AE00                    CALL  waitkbdout
+    59 00000039 B0DF                      MOV   AL, 0xDF
+    60 0000003B E660                      OUT   0x60, AL
+    61                                  
+    62 0000003D E8A700                    CALL  waitkbdout
+    63                                  
+    64                                  
+    65                                  ; 保护模式转换
+    66                                  ; [INSTRSET "i486p"]    ; 说明使用 486 指令 (nask)
+    67                                  
+    68 00000040 0F0116[2A01]              LGDT  [GDTR0]         ; 设置临时 GDT
+    69 00000045 0F20C0                    MOV   EAX, CR0
+    70 00000048 6625FFFFFF7F              AND   EAX, 0x7FFFFFFF ; 使用 bit 31 (禁用分页)
+    71 0000004E 6683C801                  OR    EAX, 0x00000001 ; bit 0 到 1 转换 （保护模过渡）
+    72 00000052 0F22C0                    MOV   CR0, EAX
+    73 00000055 EB00                      JMP   pipelineflush
+    74                                  
+    75                                  
+    76                                  pipelineflush:
+    77 00000057 B80800                    MOV   AX, 1*8         ; 写 32 bit 的段
+    78 0000005A 8ED8                      MOV   DS, AX
+    79 0000005C 8EC0                      MOV   ES, AX
+    80 0000005E 8EE0                      MOV   FS, AX
+    81 00000060 8EE8                      MOV   GS, AX
+    82 00000062 8ED0                      MOV   SS, AX
+    83                                  
+    84                                  ; bootpack 传递
+    85 00000064 66BE[30010000]            MOV   ESI, bootpack         ; 源
+    86 0000006A 66BF00002800              MOV   EDI, BOTPAK           ; 目标
+    87 00000070 66B900000200              MOV   ECX, 512 * 1024 / 4
+    88 00000076 E87500                    CALL  memcpy
+    89                                  
+    90                                  ; 传输磁盘数据
+    91                                  
+    92                                  ; 从引导区开始
+    93 00000079 66BE007C0000              MOV   ESI, 0x7C00           ; 源
+    94 0000007F 66BF00001000              MOV   EDI, DSKCAC           ; 目标
+    95 00000085 66B980000000              MOV   ECX, 512 / 4
+    96 0000008B E86000                    CALL  memcpy
+    97                                  
+    98                                  ; 剩下的全部
+    99 0000008E 66BE00820000              MOV   ESI, DSKCAC0 + 512    ; 源
+   100 00000094 66BF00021000              MOV   EDI, DSKCAC  + 512    ; 目标
+   101 0000009A 66B900000000              MOV   ECX, 0
+   102 000000A0 8A0EF00F                  MOV   CL, BYTE [CYLS]
+   103 000000A4 6669C900120000            IMUL  ECX, 512 * 18 * 2 / 4 ; /4 获取字节数
+   104 000000AB 6681E980000000            SUB   ECX, 512 / 4          ; IPL 偏移量
+   105 000000B2 E83900                    CALL  memcpy
+   106                                  
+   107                                  ; 由于还需要asmhead才能完成
+   108                                  ; 完成其余的bootpack任务
+   109                                  
+   110                                  ; bootpack 启动
+   111 000000B5 66BB00002800              MOV   EBX, BOTPAK
+   112 000000BB 67668B4B10                MOV   ECX, [EBX + 16]
+   113 000000C0 6683C103                  ADD   ECX, 3                ; += 3
+   114 000000C4 66C1E902                  SHR   ECX, 2                ; /= 4
+   115 000000C8 7410                      JZ    skip                  ; 传输完成
+   116 000000CA 67668B7314                MOV   ESI, [EBX + 20]       ; 源
+   117 000000CF 6601DE                    ADD   ESI, EBX
+   118 000000D2 67668B7B0C                MOV   EDI, [EBX + 12]       ; 目标
+   119 000000D7 E81400                    CALL  memcpy
+   120                                  
+   121                                  
+   122                                  skip:
+   123 000000DA 67668B630C                MOV   ESP, [EBX + 12]       ; 堆栈初始化
+   124 000000DF 66EA1B0000001000          JMP   DWORD 2 * 8 : 0x1B
+   125                                  
+   126                                  
+   127                                  waitkbdout:
+   128 000000E7 E464                      IN    AL, 0x64
+   129 000000E9 2402                      AND   AL, 0x02
+   130 000000EB 75FA                      JNZ   waitkbdout            ; AND 结果不为 0 jump to waitkbdout
+   131 000000ED C3                        RET
+   132                                  
+   133                                  
+   134                                  memcpy:
+   135 000000EE 67668B06                  MOV   EAX, [ESI]
+   136 000000F2 6683C604                  ADD   ESI, 4
+   137 000000F6 67668907                  MOV   [EDI], EAX
+   138 000000FA 6683C704                  ADD   EDI, 4
+   139 000000FE 6683E901                  SUB   ECX, 1
+   140 00000102 75EA                      JNZ   memcpy                ; if ECX - 1 != 0 then jump memcpy
+   141 00000104 C3                        RET
+   142                                  
+   143                                   ; memcpy 地址 前缀大小
+   144 00000105 <res Bh>                  ALIGNB  16
+   145                                  
+   146                                  
+   147                                  GDT0:
+   148 00000110 00<rep 8h>                times   8    DB 0x00                    ; init value
+   149 00000118 FFFF00000092CF00          DW      0xFFFF, 0x0000, 0x9200, 0x00CF  ; 写 32 bit 位段寄存器
+   150 00000120 FFFF0000289A4700          DW      0xFFFF, 0x0000, 0x9A28, 0x0047  ; 可执行文件的 32 bit 位寄存器 ( bootpack  use )
+   151 00000128 0000                      DW      0
+   152                                  
+   153                                  
+   154                                  GDTR0:
+   155 0000012A 1700                      DW      8 * 3 -1
+   156 0000012C [10010000]                DD      GDT0
+   157                                  
+   158                                    ALIGNB  16
+   159                                  
+   160                                  
+   161                                  bootpack:
+   162                                  
+   163                                  
+   164                                  ; 8086 -> 80186 -> 286 -> 386 -> 486 -> Pentium -> PentiumPro -> PentiumII -> PentiumIII -> Pentium4 -> ...
+   165                                  
+   166                                  

@@ -67,7 +67,7 @@ ORG   0xC200            ; 这个程序装载到内存的位置
 
 ; 保护模式转换
 ; [INSTRSET "i486p"]    ; 说明使用 486 指令 (nask)
-  CPU   486             ; nasm
+; CPU   486             ; nasm (非必要)
 
   LGDT  [GDTR0]         ; 设置临时 GDT
   MOV   EAX, CR0

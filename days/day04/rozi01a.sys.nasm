@@ -1,4 +1,4 @@
-; path: rozi/days/day03/rozi00j.sys.nasm
+; path: rozi/days/day04/rozi01a.sys.nasm
 ; author: redskaber
 ; format: TAB=2
 ; datetime: 2026-06-06
@@ -64,7 +64,6 @@ ORG   0xC200            ; 这个程序装载到内存的位置
 
 ; 保护模式转换
 ; [INSTRSET "i486p"]    ; 说明使用 486 指令 (nask)
-; CPU   486             ; nasm (非必要)
 
   LGDT  [GDTR0]         ; 设置临时 GDT
   MOV   EAX, CR0
@@ -160,5 +159,8 @@ GDTR0:
 
 
 bootpack:
+
+
+; 8086 -> 80186 -> 286 -> 386 -> 486 -> Pentium -> PentiumPro -> PentiumII -> PentiumIII -> Pentium4 -> ...
 
 
