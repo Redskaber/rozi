@@ -1,6 +1,6 @@
-/* path: rozi/days/day04/bootpack.c
+/* path: rozi/days/day04/bootpack01a.c
  * author: redskaber
- * datetime: 2026-06-05
+ * datetime: 2026-06-06
  * format: tab = 2
  */
 

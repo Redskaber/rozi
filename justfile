@@ -150,6 +150,13 @@ ROZI_LDS              := "rozi.lds"
 #   0x0018  DWORD  0xe9000000
 #   0x001c  DWORD  Application entry address − 0x20
 #   0x0020  DWORD  malloc space start address
+#
+# Orphan sections policy (since binutils ≥ 2.36 may auto‑generate .note.*,
+# .comment, .gnu* etc.):
+#   - All .note.*, .comment, .gnu*, .eh_frame are explicitly discarded.
+#   - For additional safety, link step uses --orphan-handling=discard
+#     so that any future orphan sections are silently dropped,
+#     preventing LMA overlap errors in flat‑binary output.
 # =============================================================================
 
 export _ROZI_LDS_CONTENT := '''
@@ -187,7 +194,12 @@ SECTIONS
         *(.bss)
     }
 
-    /DISCARD/ : { *(.eh_frame) }
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.note.*)
+        *(.comment)
+        *(.gnu*)
+    }
 }
 '''
 
@@ -281,10 +293,16 @@ nasmfunc-obj npath: _check-toolchain
 # =============================================================================
 # Step 5 — Link kernel → bootpack.rozi  (Rozi binary via rozi.lds)
 # =============================================================================
-# Mirrors:
+# Mirrors original Makefile rule, with one hardening addition:
 #   $(LD) $(LDFLAGS) --oformat binary -o bootpack.rozi \
 #         --defsym=STACK_SIZE=3136*1024 -T $(ROZI_LDS) \
 #         bootpack.obj nasmfunc.obj -Map bootpack.map
+#
+# Hardening:
+#   --orphan-handling=discard
+#     Drops any input sections not explicitly placed by the linker script
+#     (e.g. .note.gnu.property, .comment, future toolchain‑injected orphans).
+#     Prevents "overlaps section .data" errors in flat‑binary output.
 #
 # Depends on _gen-rozi-lds to materialise rozi.lds before the link step.
 # bootpack.obj and nasmfunc.obj must already exist (produced by steps 3 & 4).
@@ -297,6 +315,7 @@ bootpack-rozi: _gen-rozi-lds
     -o {{DEFAULT_BOOTPACK_ROZI}}                        \
     --defsym=STACK_SIZE={{STACK_SIZE}}                  \
     -T {{ROZI_LDS}}                                     \
+    --orphan-handling=discard                           \
     {{DEFAULT_BOOTPACK_NAME}} {{DEFAULT_NASMFUNC_NAME}} \
     -Map {{without_extension(DEFAULT_BOOTPACK_ROZI)}}.map
 

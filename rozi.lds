@@ -32,5 +32,10 @@ SECTIONS
         *(.bss)
     }
 
-    /DISCARD/ : { *(.eh_frame) }
+    /DISCARD/ : {
+        *(.eh_frame)
+        *(.note.*)
+        *(.comment)
+        *(.gnu*)
+    }
 }

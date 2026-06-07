@@ -1,4 +1,4 @@
-; path: rozi/days/day04/nasmfunc.nasm
+; path: rozi/days/day04/nasmfunc01a.nasm
 ; author: redskaber
 ; format: TAB=2
 ; datetime: 2026-06-06
