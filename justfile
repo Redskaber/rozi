@@ -62,6 +62,15 @@ GCCPREFIX := if _is_macos == "1" {
 
 
 # =============================================================================
+# Debug support
+# Usage: DEBUG=1 just run
+# =============================================================================
+DEBUG             := env_var_or_default("DEBUG", "")
+CFLAGS_DEBUG      := if DEBUG != "" { " -g" } else { "" }
+QEMU_DEBUG_FLAGS  := if DEBUG != "" { "-gdb tcp::1234 -S" } else { "" }
+
+
+# =============================================================================
 # Toolchain
 # =============================================================================
 
@@ -83,18 +92,20 @@ OBJCOPY := GCCPREFIX + "objcopy"
 #        C function RoziMain()   → ELF symbol _RoziMain
 #   This must be paired with --prefix _ on the NASM side (see nasmfunc-obj)
 #   so that NASM global symbols are also prefixed and the linker finds them.
-CFLAGS := "-fleading-underscore"  + \
-          " -ffreestanding"       + \
-          " -fno-stack-protector" + \
-          " -nostdlib"            + \
-          " -nostdinc"            + \
-          " -nostartfiles"        + \
-          " -Wall"                + \
-          " -fno-pie"             + \
-          " -m32"                 + \
-          " -mtune=i486"          + \
-          " -march=i486"          + \
-          " -masm=intel"
+CFLAGS_BASE := "-fleading-underscore"  + \
+               " -ffreestanding"       + \
+               " -fno-stack-protector" + \
+               " -nostdlib"            + \
+               " -nostdinc"            + \
+               " -nostartfiles"        + \
+               " -Wall"                + \
+               " -fno-pie"             + \
+               " -m32"                 + \
+               " -mtune=i486"          + \
+               " -march=i486"          + \
+               " -masm=intel"
+
+CFLAGS := CFLAGS_BASE + CFLAGS_DEBUG
 
 # Linker emulation: ELF i386
 LDFLAGS := "-m elf_i386"
@@ -376,7 +387,7 @@ _img:
 
 # Launch the disk image in QEMU
 run:
-  @qemu-system-x86_64 -drive format=raw,file={{DEFAULT_IMG_NAME}},if=floppy
+  @qemu-system-x86_64 {{QEMU_DEBUG_FLAGS}} -drive format=raw,file={{DEFAULT_IMG_NAME}},if=floppy
 
 
 # =============================================================================
